@@ -637,11 +637,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
         function formatCodeBlock(code, language = '') {
-            // Trim any extra whitespace and normalize line endings
-            const normalizedCode = code.replace(/\r\n/g, '\n').trim();
-            // Remove any leading/trailing empty lines
-            const cleanedCode = normalizedCode.replace(/^\n+|\n+$/g, '');
-            return `<pre><code class="language-${language}">${escapeHtml(cleanedCode)}</code></pre>`;
+       // Escape HTML and clean up code block by trimming whitespace and normalizing line endings
+            return escapeHtml(code.trim().replace(/\r\n/g, '\n').replace(/^\n+|\n+$/g, ''));
         }
 
         function escapeHtml(text) {
@@ -697,30 +694,34 @@ document.addEventListener("DOMContentLoaded", async function () {
             popup.className = 'selection-popup';
             popup.innerHTML = `
                 <div class="selection-popup-header">
-                    <span class="selection-icon">💡</span>
-                    <span class="selection-text">Selected Code Actions</span>
+                    <span class="selection-icon">✨</span>
+                    <span class="selection-text">Code Assistant</span>
                     <span class="line-info"></span>
                 </div>
                 <div class="selection-popup-input-container">
-                    <input type="text" class="selection-popup-input" placeholder="Ask a question or request code suggestion...">
+                    <input type="text" class="selection-popup-input" placeholder="Ask a question or get code suggestions...">
+                    <div class="input-actions">
+                        <button class="selection-popup-btn ask-btn" title="Ask a question">
+                            <i class="question circle icon"></i>
+                            Ask
+                        </button>
+                        <button class="selection-popup-btn suggest-btn" title="Get code suggestions">
+                            <i class="magic icon"></i>
+                            Suggest
+                        </button>
+                    </div>
                 </div>
                 <div class="selection-popup-preview" style="display: none">
                     <div class="preview-header">
-                        <span class="preview-title">Suggested Changes</span>
-                        <div class="preview-actions">
-                            <button class="selection-popup-btn apply-btn">Apply Changes</button>
-                            <button class="selection-popup-btn secondary cancel-preview-btn">Cancel</button>
-                        </div>
+                        <span class="preview-title">
+                            <i class="code icon"></i>
+                            Code Suggestion
+                        </span>
                     </div>
-                    <pre class="preview-content"><code></code></pre>
-                </div>
-                <div class="selection-popup-actions">
-                    <button class="selection-popup-btn ask-btn">Ask Question</button>
-                    <button class="selection-popup-btn suggest-btn">Get Suggestion</button>
-                    <button class="selection-popup-btn secondary cancel-btn">Cancel</button>
+                    <div class="preview-content"></div>
                 </div>
                 <div class="selection-popup-hint">
-                    Press Enter to ask, Shift+Enter for suggestion, Esc to close
+                    <kbd>Enter</kbd> Ask &nbsp; <kbd>⇧ Enter</kbd> Suggest &nbsp; <kbd>Esc</kbd> Close
                 </div>
             `;
             document.body.appendChild(popup);
@@ -789,11 +790,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             const input = popup.querySelector('.selection-popup-input');
             const askBtn = popup.querySelector('.ask-btn');
             const suggestBtn = popup.querySelector('.suggest-btn');
-            const cancelBtn = popup.querySelector('.cancel-btn');
             const previewSection = popup.querySelector('.selection-popup-preview');
-            const applyBtn = popup.querySelector('.apply-btn');
-            const cancelPreviewBtn = popup.querySelector('.cancel-preview-btn');
-            const previewContent = popup.querySelector('.preview-content code');
             
             input.focus();
             
@@ -801,15 +798,13 @@ document.addEventListener("DOMContentLoaded", async function () {
             input.onkeydown = null;
             askBtn.onclick = null;
             suggestBtn.onclick = null;
-            cancelBtn.onclick = null;
-            applyBtn.onclick = null;
-            cancelPreviewBtn.onclick = null;
             
             // Add new event listeners
             input.onkeydown = (e) => {
                 if (e.key === 'Enter') {
                     if (e.shiftKey) {
-                        handleSuggestion(input.value, previewSection, previewContent);
+                        previewSection.style.display = 'block';
+                        handleSuggestion(input.value, previewSection);
                     } else {
                         handleQuestion(input.value);
                     }
@@ -820,32 +815,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             };
             
             askBtn.onclick = () => handleQuestion(input.value);
-            suggestBtn.onclick = () => handleSuggestion(input.value, previewSection, previewContent);
-            cancelBtn.onclick = hideSelectionPopup;
-            
-            applyBtn.onclick = () => {
-                if (lastSelection) {
-                    // Clean up the code before applying
-                    const cleanCode = previewContent.textContent
-                        .replace(/\r\n/g, '\n') // Normalize line endings
-                        .trim(); // Remove leading/trailing whitespace
-                    
-                    sourceEditor.executeEdits('chat-suggestion', [{
-                        range: lastSelection,
-                        text: cleanCode,
-                        forceMoveMarkers: true
-                    }]);
-                    hideSelectionPopup();
-                } else {
-                    showError('Error', 'Please select the code you want to replace first.');
-                }
-            };
-            
-            cancelPreviewBtn.onclick = () => {
-                previewSection.style.display = 'none';
-                popup.querySelector('.selection-popup-actions').style.display = 'grid';
-                input.value = '';
-                input.focus();
+            suggestBtn.onclick = () => {
+                previewSection.style.display = 'block';
+                handleSuggestion(input.value, previewSection);
             };
 
             // Prevent hiding when interacting with popup
@@ -1070,7 +1042,7 @@ Provide only the completion. No explanations.`;
             };
         }
 
-        async function handleSuggestion(prompt, previewSection, previewContent) {
+        async function handleSuggestion(prompt, previewSection) {
             if (!prompt.trim()) return;
 
             const selection = sourceEditor.getSelection();
@@ -1097,20 +1069,52 @@ User request: ${prompt}
 Provide only the improved/suggested code that should replace the selection. No explanations, just the code.`;
 
                 // Show loading state
-                previewContent.textContent = 'Loading suggestion...';
-                previewSection.style.display = 'block';
-                document.querySelector('.selection-popup-actions').style.display = 'none';
+                previewSection.innerHTML = '<div class="loading-container"><div class="loading-spinner"></div><span>Generating suggestion...</span></div>';
 
                 const response = await callAI(selectedModel, apiKey, message);
                 
-                // Show the suggestion in the preview
-                previewContent.textContent = response.trim();
-                if (window.hljs) {
-                    hljs.highlightElement(previewContent);
+                if (response && typeof response === 'string') {
+                    let cleanedResponse = response.trim();
+                    const codeBlockMatch = cleanedResponse.match(/^```[\s\S]*?\n([\s\S]*?)\n```$/);
+                    if (codeBlockMatch) {
+                        cleanedResponse = codeBlockMatch[1].trim();
+                    }
+                    
+                    // Clear loading state and create diff view
+                    previewSection.innerHTML = '';
+                    
+                    // Create diff view with actions
+                    const diffActions = createDiffViewWithActions(
+                        previewSection,
+                        selectedText,
+                        cleanedResponse,
+                        sourceEditor.getModel().getLanguageId()
+                    );
+                    
+                    // Setup action handlers
+                    diffActions.applyBtn.onclick = () => {
+                        if (lastSelection) {
+                            // Get the modified code
+                            const finalCode = diffActions.diffView.getModifiedCode();
+                            
+                            sourceEditor.executeEdits('popup-suggestion', [{
+                                range: lastSelection,
+                                text: finalCode,
+                                forceMoveMarkers: true
+                            }]);
+                            
+                            diffActions.cleanup();
+                            hideSelectionPopup();
+                        }
+                    };
+                    
+                    diffActions.cancelBtn.onclick = hideSelectionPopup;
+                } else {
+                    throw new Error('Invalid response format from AI');
                 }
             } catch (error) {
-                previewContent.textContent = `Error: ${error.message}`;
-                previewContent.style.color = 'var(--vscode-errorForeground, #f48771)';
+                // Show error state
+                previewSection.innerHTML = `<div class="error-message" style="color: var(--vscode-errorForeground, #f48771); padding: 12px;">${error.message}</div>`;
             }
         }
 
@@ -1313,112 +1317,38 @@ Provide only the improved/suggested code that should replace the selection. No e
                     // Format AI responses
                     messageDiv.innerHTML = formatMarkdown(text);
                     
-                    // Apply syntax highlighting to code blocks
+                    // Handle code blocks
                     messageDiv.querySelectorAll('pre code').forEach(block => {
-                        if (window.hljs) {
-                            hljs.highlightElement(block);
-                        }
-                        
-                        // Add apply code button for code blocks
                         const codeContainer = block.parentElement;
-                        const applyButton = document.createElement('button');
-                        applyButton.className = 'apply-code-btn';
-                        applyButton.textContent = 'Apply Changes';
                         
-                        // Create preview button
-                        const previewButton = document.createElement('button');
-                        previewButton.className = 'preview-code-btn';
-                        previewButton.textContent = 'Preview';
+                        // Create actions container
+                        const actionsDiv = document.createElement('div');
+                        actionsDiv.className = 'code-actions';
                         
-                        // Add buttons container
-                        const buttonsContainer = document.createElement('div');
-                        buttonsContainer.className = 'code-block-buttons';
-                        buttonsContainer.appendChild(previewButton);
-                        buttonsContainer.appendChild(applyButton);
+                        // Add apply button
+                        const applyBtn = document.createElement('button');
+                        applyBtn.className = 'code-action-btn apply';
+                        applyBtn.innerHTML = '<i class="check icon"></i> Apply';
                         
-                        codeContainer.insertBefore(buttonsContainer, block);
+                        actionsDiv.appendChild(applyBtn);
+                        codeContainer.insertBefore(actionsDiv, block);
                         
-                        // Add click handlers
-                        previewButton.onclick = () => {
-                            // Create and show preview popup
-                            const previewPopup = document.createElement('div');
-                            previewPopup.className = 'code-preview-popup';
-                            previewPopup.innerHTML = `
-                                <div class="preview-header">
-                                    <span class="preview-title">Preview Changes</span>
-                                    <div class="preview-actions">
-                                        <button class="apply-preview-btn">Apply</button>
-                                        <button class="cancel-preview-btn">Cancel</button>
-                                    </div>
-                                </div>
-                                <div class="preview-diff"></div>
-                            `;
-                            
-                            document.body.appendChild(previewPopup);
-                            
-                            // Position popup near the code block
-                            const rect = block.getBoundingClientRect();
-                            previewPopup.style.top = `${rect.top}px`;
-                            previewPopup.style.left = `${rect.right + 10}px`;
-                            
-                            // Show diff preview
-                            const newCode = block.textContent;
-                            const currentCode = lastSelection ? sourceEditor.getModel().getValueInRange(lastSelection) : '';
-                            
-                            // Create diff view
-                            const originalModel = monaco.editor.createModel(currentCode);
-                            const modifiedModel = monaco.editor.createModel(newCode);
-                            
-                            const diffContainer = previewPopup.querySelector('.preview-diff');
-                            const diffEditor = monaco.editor.createDiffEditor(diffContainer, {
-                                readOnly: true,
-                                renderSideBySide: true,
-                                minimap: { enabled: false }
-                            });
-                            
-                            diffEditor.setModel({
-                                original: originalModel,
-                                modified: modifiedModel
-                            });
-                            
-                            // Handle apply button click
-                            previewPopup.querySelector('.apply-preview-btn').onclick = () => {
-                                if (lastSelection) {
-                                    sourceEditor.executeEdits('chat-suggestion', [{
-                                        range: lastSelection,
-                                        text: newCode,
-                                        forceMoveMarkers: true
-                                    }]);
-                                }
-                                previewPopup.remove();
-                                originalModel.dispose();
-                                modifiedModel.dispose();
-                            };
-                            
-                            // Handle cancel button click
-                            previewPopup.querySelector('.cancel-preview-btn').onclick = () => {
-                                previewPopup.remove();
-                                originalModel.dispose();
-                                modifiedModel.dispose();
-                            };
-                        };
-                        
-                        applyButton.onclick = () => {
+                        applyBtn.onclick = () => {
                             if (lastSelection) {
-                                // Clean up the code before applying
-                                const cleanCode = block.textContent
-                                    .replace(/\r\n/g, '\n') // Normalize line endings
-                                    .trim(); // Remove leading/trailing whitespace
-                                
                                 sourceEditor.executeEdits('chat-suggestion', [{
                                     range: lastSelection,
-                                    text: cleanCode,
+                                    text: block.textContent,
                                     forceMoveMarkers: true
                                 }]);
                             } else {
                                 showError('Error', 'Please select the code you want to replace first.');
                             }
                         };
+                        
+                        // Apply syntax highlighting
+                        if (window.hljs) {
+                            hljs.highlightElement(block);
+                        }
                     });
                 }
                 
@@ -1452,8 +1382,36 @@ Provide only the improved/suggested code that should replace the selection. No e
                         const lastMessage = chatMessages[0].lastElementChild;
                         lastMessage.innerHTML = formatMarkdown(response);
                         
-                        // Apply syntax highlighting to code blocks
+                        // Apply syntax highlighting and add code actions
                         lastMessage.querySelectorAll('pre code').forEach(block => {
+                            const codeContainer = block.parentElement;
+                            const language = block.className.replace('language-', '');
+                            
+                            // Create actions container
+                            const actionsDiv = document.createElement('div');
+                            actionsDiv.className = 'code-actions';
+                            
+                            // Add apply button
+                            const applyBtn = document.createElement('button');
+                            applyBtn.className = 'code-action-btn apply';
+                            applyBtn.innerHTML = '<i class="check icon"></i> Apply';
+                            
+                            actionsDiv.appendChild(applyBtn);
+                            codeContainer.insertBefore(actionsDiv, block);
+                            
+                            applyBtn.onclick = () => {
+                                if (lastSelection) {
+                                    sourceEditor.executeEdits('chat-suggestion', [{
+                                        range: lastSelection,
+                                        text: block.textContent,
+                                        forceMoveMarkers: true
+                                    }]);
+                                } else {
+                                    showError('Error', 'Please select the code you want to replace first.');
+                                }
+                            };
+                            
+                            // Apply syntax highlighting
                             if (window.hljs) {
                                 hljs.highlightElement(block);
                             }
@@ -1882,8 +1840,6 @@ ${context.output}
 function gatherCodeContext() {
     // Get currently selected code and its position
     let selectedContext = {};
-    let surroundingCode = '';
-    let lastEndLine;
     
     // Use lastSelection if available
     if (lastSelection && lastSelectionText) {
@@ -1894,35 +1850,6 @@ function gatherCodeContext() {
             endLine: lastSelection.endLineNumber,
             totalLines: model.getLineCount()
         };
-
-        // Get surrounding context (a few lines before and after selection)
-        const CONTEXT_LINES = 3;
-        
-        const startLine = Math.max(1, selectedContext.startLine - CONTEXT_LINES);
-        lastEndLine = Math.min(selectedContext.totalLines, selectedContext.endLine + CONTEXT_LINES);
-        
-        if (startLine < selectedContext.startLine) {
-            surroundingCode += `// Lines ${startLine} to ${selectedContext.startLine - 1}\n`;
-            surroundingCode += model.getValueInRange({
-                startLineNumber: startLine,
-                endLineNumber: selectedContext.startLine - 1,
-                startColumn: 1,
-                endColumn: model.getLineMaxColumn(selectedContext.startLine - 1)
-            }) + '\n';
-        }
-        
-        surroundingCode += `// Selected code (lines ${selectedContext.startLine} to ${selectedContext.endLine})\n`;
-        surroundingCode += selectedContext.code + '\n';
-        
-        if (lastEndLine > selectedContext.endLine) {
-            surroundingCode += `// Lines ${selectedContext.endLine + 1} to ${lastEndLine}\n`;
-            surroundingCode += model.getValueInRange({
-                startLineNumber: selectedContext.endLine + 1,
-                endLineNumber: lastEndLine,
-                startColumn: 1,
-                endColumn: model.getLineMaxColumn(lastEndLine)
-            });
-        }
     }
 
     const context = {
@@ -1933,21 +1860,98 @@ function gatherCodeContext() {
         statusLine: $statusLine.html()
     };
 
-    // Format the message based on whether there's a selection or not
-    let codeContext;
-    if (selectedContext.code) {
-        codeContext = surroundingCode;
-        if (selectedContext.totalLines > lastEndLine) {
-            codeContext += '\n// ... rest of the file ...';
-        }
-    } else {
-        codeContext = sourceEditor.getValue();
-    }
-
     return {
         ...context,
-        code: codeContext,
+        code: selectedContext.code || sourceEditor.getValue(),
         hasSelection: !!selectedContext.code,
         selectionInfo: selectedContext
+    };
+}
+
+// Helper function to create diff view
+function createDiffView(container, originalCode, newCode, language = 'plaintext') {
+    // Create container for diff editor
+    const diffContainer = document.createElement('div');
+    diffContainer.className = 'diff-container';
+    diffContainer.style.height = '300px';
+    container.appendChild(diffContainer);
+    
+    // Create models for original and modified code
+    const originalModel = monaco.editor.createModel(originalCode, language);
+    const modifiedModel = monaco.editor.createModel(newCode, language);
+    
+    // Create diff editor
+    const diffEditor = monaco.editor.createDiffEditor(diffContainer, {
+        renderSideBySide: true,
+        readOnly: true,
+        minimap: { enabled: false },
+        automaticLayout: true,
+        theme: 'vs-dark',
+        fontSize: 13,
+        fontFamily: 'JetBrains Mono',
+        lineNumbers: 'on',
+        scrollBeyondLastLine: false,
+        wordWrap: 'on'
+    });
+    
+    diffEditor.setModel({
+        original: originalModel,
+        modified: modifiedModel
+    });
+    
+    return {
+        editor: diffEditor,
+        getModifiedCode: () => modifiedModel.getValue(),
+        cleanup: () => {
+            originalModel.dispose();
+            modifiedModel.dispose();
+            diffEditor.dispose();
+        }
+    };
+}
+
+function createDiffViewWithActions(container, originalCode, newCode, language = 'plaintext') {
+    // Create diff view container
+    const diffViewContainer = document.createElement('div');
+    diffViewContainer.className = 'diff-view-container';
+    container.appendChild(diffViewContainer);
+    
+    // Create the diff view
+    const diffView = createDiffView(
+        diffViewContainer,
+        originalCode,
+        newCode,
+        language
+    );
+    
+    // Create actions container
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'popup-actions';
+    
+    // Create apply button
+    const applyBtn = document.createElement('button');
+    applyBtn.className = 'popup-action-btn apply';
+    applyBtn.innerHTML = '<i class="check icon"></i> Apply Changes';
+    
+    // Create cancel button
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'popup-action-btn cancel';
+    cancelBtn.innerHTML = '<i class="times icon"></i> Cancel';
+    
+    // Add buttons to actions container
+    actionsDiv.appendChild(applyBtn);
+    actionsDiv.appendChild(cancelBtn);
+    container.appendChild(actionsDiv);
+    
+    // Return cleanup and action handlers
+    return {
+        cleanup: () => {
+            diffView.cleanup();
+            container.removeChild(diffViewContainer);
+            container.removeChild(actionsDiv);
+        },
+        applyBtn,
+        cancelBtn,
+        diffView
     };
 }

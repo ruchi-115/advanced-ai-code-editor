@@ -75,12 +75,13 @@
 .chat-message {
     max-width: 85%;
     margin: 4px 0;
-    padding: 8px 12px;
+    padding: 12px;
     border-radius: 12px;
     word-wrap: break-word;
     font-size: 13px;
     line-height: 1.4;
     white-space: pre-wrap;
+    position: relative;
 }
 
 .chat-message.outgoing {
@@ -102,6 +103,7 @@
     padding: 10px;
     gap: 8px;
     border-top: 1px solid var(--vscode-panel-border, #3c3c3c);
+    position: relative;
 }
 
 .chat-input {
@@ -113,6 +115,7 @@
     padding: 6px 10px;
     font-family: "JetBrains Mono", monospace;
     font-size: 13px;
+    padding-right: 80px; /* Space for send button */
 }
 
 .chat-input:focus {
@@ -121,18 +124,30 @@
 }
 
 .chat-send-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
     background: var(--vscode-button-background, #0e639c);
     color: var(--vscode-button-foreground, #ffffff);
     border: none;
-    border-radius: 4px;
-    padding: 6px 12px;
     cursor: pointer;
     font-family: "JetBrains Mono", monospace;
     font-size: 13px;
 }
 
 .chat-send-btn:hover {
-    background: var(--vscode-button-hoverBackground, #1177bb);
+    transform: translateY(-50%) scale(1.05);
+}
+
+.chat-send-btn i {
+    font-size: 14px;
 }
 
 /* Make the popup draggable area look like VS Code */
@@ -159,13 +174,12 @@
 
 /* Code block formatting */
 .chat-message pre {
-    background-color: var(--vscode-editor-background, #1e1e1e);
+    margin: 12px 0;
+    padding: 32px 12px 12px;
+    position: relative;
+    background: var(--vscode-editor-background, #1e1e1e);
     border: 1px solid var(--vscode-panel-border, #3c3c3c);
-    border-radius: 4px;
-    padding: 8px;
-    margin: 8px 0;
-    overflow-x: auto;
-    font-family: 'JetBrains Mono', monospace;
+    border-radius: 6px;
 }
 
 .chat-message code {
@@ -173,6 +187,56 @@
     background-color: var(--vscode-editor-background, #1e1e1e);
     padding: 2px 4px;
     border-radius: 3px;
+}
+
+.chat-message .code-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 6px;
+    z-index: 2;
+    background: var(--vscode-editor-background, #1e1e1e);
+    padding: 4px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.chat-message .code-action-btn {
+    background: var(--vscode-button-background, #0e639c);
+    color: var(--vscode-button-foreground, #ffffff);
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+    opacity: 0.9;
+    white-space: nowrap;
+}
+
+.chat-message .code-action-btn:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+.chat-message .code-action-btn.view-diff {
+    background: var(--vscode-button-background, #0e639c);
+}
+
+.chat-message .code-action-btn.apply {
+    background: var(--vscode-gitDecoration-addedResourceForeground, #81b88b);
+}
+
+.chat-message .code-action-btn.cancel {
+    background: var(--vscode-button-secondaryBackground, #3c3c3c);
+}
+
+.chat-message .code-action-btn i {
+    font-size: 14px;
 }
 
 /* Markdown formatting */
@@ -429,13 +493,13 @@
     background: var(--vscode-editor-background, #1e1e1e);
     border: 1px solid var(--vscode-panel-border, #3c3c3c);
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     padding: 12px;
-    min-width: 350px;
+    min-width: 400px;
     opacity: 0;
     pointer-events: none;
     transform: translateY(-10px);
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .selection-popup.visible {
@@ -447,29 +511,29 @@
 .selection-popup-header {
     display: flex;
     align-items: center;
-    margin-bottom: 12px;
+    gap: 8px;
+    padding: 4px 0 12px;
     color: var(--vscode-editor-foreground, #d4d4d4);
-    font-size: 12px;
+    font-size: 13px;
     cursor: move;
     user-select: none;
-    padding: 4px 0;
 }
 
 .selection-popup-header .selection-icon {
-    margin-right: 8px;
-    font-size: 14px;
+    font-size: 16px;
 }
 
 .selection-popup-header .line-info {
-    color: var(--vscode-descriptionForeground, #cccccc);
     margin-left: auto;
     font-size: 11px;
     padding: 2px 6px;
     background: var(--vscode-editor-inactiveSelectionBackground, #3a3d41);
     border-radius: 4px;
+    color: var(--vscode-descriptionForeground, #cccccc);
 }
 
 .selection-popup-input-container {
+    position: relative;
     margin-bottom: 12px;
 }
 
@@ -482,34 +546,32 @@
     padding: 8px 10px;
     font-family: "JetBrains Mono", monospace;
     font-size: 13px;
-    margin-bottom: 8px;
+    transition: border-color 0.2s ease;
 }
 
 .selection-popup-input:focus {
     outline: none;
     border-color: var(--vscode-focusBorder, #007fd4);
-    box-shadow: 0 0 0 1px var(--vscode-focusBorder, #007fd4);
 }
 
-.selection-popup-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+.input-actions {
+    display: flex;
     gap: 8px;
-    margin-bottom: 8px;
+    margin-top: 8px;
 }
 
 .selection-popup-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     background: var(--vscode-button-background, #0e639c);
     color: var(--vscode-button-foreground, #ffffff);
     border: none;
     border-radius: 4px;
-    padding: 8px 12px;
-    cursor: pointer;
-    font-family: "JetBrains Mono", monospace;
+    padding: 6px 12px;
     font-size: 12px;
+    cursor: pointer;
     transition: all 0.2s ease;
-    text-align: center;
-    font-weight: 500;
 }
 
 .selection-popup-btn:hover {
@@ -517,53 +579,294 @@
     transform: translateY(-1px);
 }
 
-.selection-popup-btn:active {
-    transform: translateY(0);
+.selection-popup-btn i {
+    font-size: 14px;
 }
 
-.selection-popup-btn.suggest-btn {
-    background: var(--vscode-button-background, #0e639c);
+.selection-popup-preview {
+    margin: 12px -12px -12px;
+    border-top: 1px solid var(--vscode-panel-border, #3c3c3c);
+    background: var(--vscode-editor-background, #1e1e1e);
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
 }
 
-.selection-popup-btn.secondary {
-    background: var(--vscode-button-secondaryBackground, #3c3c3c);
-    grid-column: 1 / -1;
+.preview-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--vscode-editor-inactiveSelectionBackground, #3a3d41);
+    font-size: 12px;
 }
 
-.selection-popup-btn.secondary:hover {
-    background: var(--vscode-button-secondaryHoverBackground, #45494e);
+.preview-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--vscode-editor-foreground, #d4d4d4);
+    font-weight: 500;
+}
+
+.preview-content {
+    padding: 12px;
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 .selection-popup-hint {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--vscode-panel-border, #3c3c3c);
     color: var(--vscode-descriptionForeground, #cccccc);
     font-size: 11px;
     text-align: center;
-    padding-top: 8px;
-    border-top: 1px solid var(--vscode-panel-border, #3c3c3c);
 }
 
-/* Selection Action Button */
-.selection-action-btn {
+.selection-popup-hint kbd {
+    display: inline-block;
+    padding: 2px 4px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    line-height: 1;
+    color: var(--vscode-editor-foreground, #d4d4d4);
+    background: var(--vscode-editor-inactiveSelectionBackground, #3a3d41);
+    border: 1px solid var(--vscode-panel-border, #3c3c3c);
+    border-radius: 3px;
+    box-shadow: 0 1px 1px rgba(0,0,0,.2);
+}
+
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    color: var(--vscode-descriptionForeground, #cccccc);
+}
+
+.loading-spinner::after {
+    content: '';
+    width: 24px;
+    height: 24px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    border-right-color: transparent;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Enhanced Selection Popup Styles */
+.selection-popup-btn i {
+    font-size: 14px;
+}
+
+.selection-popup-btn.ask-btn i {
+    color: #4CAF50;
+}
+
+.selection-popup-btn.suggest-btn i {
+    color: #2196F3;
+}
+
+.selection-popup-btn.cancel-btn i {
+    color: #9E9E9E;
+}
+
+/* Code Preview Enhancements */
+.preview-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.preview-actions button {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.preview-actions button i {
+    font-size: 14px;
+}
+
+/* Loading Animation Enhancement */
+.loading-dots {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    margin-left: 4px;
+}
+
+.loading-dots span {
+    width: 4px;
+    height: 4px;
+    background: currentColor;
+    border-radius: 50%;
+    animation: loadingDots 1.4s infinite;
+}
+
+.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes loadingDots {
+    0%, 100% { transform: scale(0.2); opacity: 0.2; }
+    50% { transform: scale(1); opacity: 1; }
+}
+
+/* Diff View Styles */
+.diff-view-container {
+    margin: 8px -12px;
+    border-top: 1px solid var(--vscode-panel-border, #3c3c3c);
+    background: var(--vscode-editor-background, #1e1e1e);
+    overflow: hidden;
+}
+
+.diff-container {
+    width: 100%;
+    border: 1px solid var(--vscode-panel-border, #3c3c3c);
+}
+
+/* Enhanced Code Actions */
+.code-actions {
     position: absolute;
-    z-index: 1000;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 6px;
+    z-index: 2;
+    background: var(--vscode-editor-background, #1e1e1e);
+    padding: 4px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.code-action-btn {
     background: var(--vscode-button-background, #0e639c);
     color: var(--vscode-button-foreground, #ffffff);
     border: none;
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    display: none;
-    align-items: center;
-    justify-content: center;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
     cursor: pointer;
-    font-size: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     transition: all 0.2s ease;
-    opacity: 0.8;
+    opacity: 0.9;
+    white-space: nowrap;
 }
 
-.selection-action-btn:hover {
-    background: var(--vscode-button-hoverBackground, #1177bb);
+.code-action-btn:hover {
     opacity: 1;
-    transform: scale(1.1);
+    transform: translateY(-1px);
+}
+
+.code-action-btn.view-diff {
+    background: var(--vscode-button-background, #0e639c);
+}
+
+.code-action-btn.apply {
+    background: var(--vscode-gitDecoration-addedResourceForeground, #81b88b);
+}
+
+.code-action-btn.cancel {
+    background: var(--vscode-button-secondaryBackground, #3c3c3c);
+}
+
+.code-action-btn i {
+    font-size: 14px;
+}
+
+/* Popup Diff View */
+.popup-diff-view {
+    margin: 12px -12px;
+    border-top: 1px solid var(--vscode-panel-border, #3c3c3c);
+    background: var(--vscode-editor-background, #1e1e1e);
+    overflow: hidden;
+}
+
+.popup-actions {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--vscode-editor-background, #1e1e1e);
+    border-top: 1px solid var(--vscode-panel-border, #3c3c3c);
+}
+
+.popup-action-btn {
+    background: var(--vscode-button-background, #0e639c);
+    color: var(--vscode-button-foreground, #ffffff);
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.popup-action-btn:hover {
+    transform: translateY(-1px);
+}
+
+.popup-action-btn.apply {
+    background: var(--vscode-gitDecoration-addedResourceForeground, #81b88b);
+}
+
+.popup-action-btn.cancel {
+    background: var(--vscode-button-secondaryBackground, #3c3c3c);
+}
+
+.popup-action-btn i {
+    font-size: 14px;
+}
+
+/* Code Block Enhancements */
+.chat-message pre {
+    margin: 12px 0;
+    padding: 32px 12px 12px;
+    position: relative;
+    background: var(--vscode-editor-background, #1e1e1e);
+    border: 1px solid var(--vscode-panel-border, #3c3c3c);
+    border-radius: 6px;
+}
+
+.chat-message pre code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    tab-size: 4;
+}
+
+/* Loading State */
+.loading-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: var(--vscode-descriptionForeground, #cccccc);
+}
+
+.loading-spinner {
+    border: 2px solid var(--vscode-button-background, #0e639c);
+    border-top-color: transparent;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.chat-message .diff-container {
+    margin-top: 12px;
+    border: 1px solid var(--vscode-panel-border, #3c3c3c);
+    border-radius: 4px;
+    overflow: hidden;
 }
